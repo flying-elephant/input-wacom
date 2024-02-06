@@ -100,7 +100,7 @@
 #ifndef WACOM_VERSION_SUFFIX
 #define WACOM_VERSION_SUFFIX ""
 #endif
-#define DRIVER_VERSION "v2.00.99"WACOM_VERSION_SUFFIX
+#define DRIVER_VERSION "v2.00-g0eacd1e"WACOM_VERSION_SUFFIX
 #define DRIVER_AUTHOR "Vojtech Pavlik <vojtech@ucw.cz>"
 #define DRIVER_DESC "USB Wacom tablet driver"
 
