@@ -90,6 +90,7 @@
 #include <linux/usb/input.h>
 #include <linux/power_supply.h>
 #include <linux/timer.h>
+#include <linux/i2c.h>
 #include <asm/unaligned.h>
 #include <linux/version.h>
 
@@ -99,7 +100,7 @@
 #ifndef WACOM_VERSION_SUFFIX
 #define WACOM_VERSION_SUFFIX ""
 #endif
-#define DRIVER_VERSION "v2.00"WACOM_VERSION_SUFFIX
+#define DRIVER_VERSION "v2.00.99"WACOM_VERSION_SUFFIX
 #define DRIVER_AUTHOR "Vojtech Pavlik <vojtech@ucw.cz>"
 #define DRIVER_DESC "USB Wacom tablet driver"
 
@@ -122,6 +123,7 @@ enum wacom_worker {
 	WACOM_WORKER_BATTERY,
 	WACOM_WORKER_REMOTE,
 	WACOM_WORKER_MODE_CHANGE,
+	WACOM_AES_RESET_WORK,
 };
 
 struct wacom;
@@ -183,6 +185,7 @@ struct wacom {
 	struct work_struct remote_work;
 	struct delayed_work init_work;
 	struct delayed_work aes_battery_work;
+	struct work_struct aes_reset_work;
 	struct wacom_remote *remote;
 	struct work_struct mode_change_work;
 	struct timer_list idleprox_timer;
@@ -217,6 +220,9 @@ static inline void wacom_schedule_work(struct wacom_wac *wacom_wac,
 		break;
 	case WACOM_WORKER_MODE_CHANGE:
 		schedule_work(&wacom->mode_change_work);
+		break;
+	case WACOM_AES_RESET_WORK:
+		schedule_work(&wacom->aes_reset_work);
 		break;
 	}
 }
@@ -263,4 +269,5 @@ void wacom_idleprox_timeout(struct timer_list *list);
 #else
 void wacom_idleprox_timeout(unsigned long data);
 #endif
+void wacom_aes_reset(struct work_struct *work);
 #endif

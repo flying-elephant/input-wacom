@@ -87,6 +87,56 @@ static int wacom_set_report(struct hid_device *hdev, u8 type, u8 *buf,
 
 	return retval;
 }
+static struct mutex reset_lock;
+void wacom_aes_reset(struct work_struct *work)
+{
+	struct wacom *wacom = container_of(work, struct wacom, aes_reset_work);\
+	struct hid_device *hdev = wacom->hdev;
+	const struct i2c_client *client = to_i2c_client(hdev->dev.parent);;
+	int ret = -1;
+	int i;
+	char pw_on[] = {0x04, 0x00, 0x00, 0x08};
+	char reset_cmd[] = {0x04, 0x00, 0x00, 0x01};
+	char reset_resp[2] = {0xff, 0xff};
+
+	if (!client)
+		return;
+	printk("Vendor: 0x%x Addr: 0x%x\n", hdev->vendor, client->addr);
+
+	/* In order not to let i2c-hid receive the  */
+	/* response from the device on interrupt,   */
+	/* disable this irq                         */
+	disable_irq(client->irq);
+
+	/* In order to prevent      */
+	/* feature command delivery */
+	mutex_lock(&reset_lock);
+
+	/* Make sure the device is woken up */
+	ret = i2c_master_send(client, pw_on, 4);
+	if (ret < 0)
+	  goto exit;
+
+	ret = i2c_master_send(client, reset_cmd, 4);
+	if (ret < 0)
+	  goto exit;
+
+	ret = i2c_master_recv(client, reset_resp, 2);
+	if (ret < 0 || (reset_resp[0] != 0x00 && reset_resp[1] != 0x00)) {
+	  printk("%s failed to get RESET response from the device\n", __func__);
+	  goto exit;
+	}
+
+	printk("%s succeeded size: %d \n", __func__, ret);
+	for (i = 0; i < 2; i++)
+	  printk("data[%d]: 0x%x \n", i, reset_resp[i]);
+
+ exit:
+	mutex_unlock(&reset_lock);
+	enable_irq(client->irq);
+
+	return;
+}
 
 static void wacom_wac_queue_insert(struct hid_device *hdev,
 				   struct kfifo_rec_ptr_2 *fifo,
@@ -2879,8 +2929,10 @@ static int wacom_probe(struct hid_device *hdev,
 	}
 
 	mutex_init(&wacom->lock);
+	mutex_init(&reset_lock);
 	INIT_DELAYED_WORK(&wacom->init_work, wacom_init_work);
 	INIT_DELAYED_WORK(&wacom->aes_battery_work, wacom_aes_battery_handler);
+	INIT_WORK(&wacom->aes_reset_work, wacom_aes_reset);
 	INIT_WORK(&wacom->wireless_work, wacom_wireless_work);
 	INIT_WORK(&wacom->battery_work, wacom_battery_work);
 	INIT_WORK(&wacom->remote_work, wacom_remote_work);

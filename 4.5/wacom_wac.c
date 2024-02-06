@@ -45,6 +45,7 @@ static void wacom_update_led(struct wacom *wacom, int button_count, int mask,
 static void wacom_force_proxout(struct wacom_wac *wacom_wac)
 {
 	struct input_dev *input = wacom_wac->pen_input;
+	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
 
 	wacom_wac->shared->stylus_in_proximity = 0;
 
@@ -63,6 +64,10 @@ static void wacom_force_proxout(struct wacom_wac *wacom_wac)
 	wacom_wac->serial[0] = 0;
 
 	input_sync(input);
+
+	if (wacom->hdev->bus == BUS_I2C &&
+	    (wacom_wac->features.quirks & WACOM_QUIRK_AESPEN))
+		wacom_schedule_work(wacom_wac, WACOM_AES_RESET_WORK);
 }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0)
